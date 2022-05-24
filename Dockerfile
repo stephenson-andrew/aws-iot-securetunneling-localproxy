@@ -1,7 +1,5 @@
 # FROM amazonlinux:latest
 FROM amazonlinux:latest as builder
-ARG OPENSSL_CONFIG
-
 # Install Prerequisites
 
 RUN yum check-update; yum upgrade -y && \
@@ -39,7 +37,10 @@ RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/p
 	make install && \
 	cd /home/dependencies
 
-RUN git clone https://github.com/openssl/openssl.git && \
+RUN architecture=$(uname -m) && \
+	if [ "${architecture}" != aarch64 -a "${architecture}" != arm64 ] ; then OPENSSL_CONFIG=linux-generic64 ; else OPENSSL_CONFIG=linux-aarch64 ; fi && \
+	echo Building for $OPENSSL_CONFIG && \
+    git clone https://github.com/openssl/openssl.git && \
 	cd openssl && \
 	git checkout OpenSSL_1_1_1-stable && \
 	./Configure $OPENSSL_CONFIG && \
@@ -56,28 +57,28 @@ RUN git clone --branch v2.13.6 https://github.com/catchorg/Catch2.git && \
 	make install && \
 	cd /home/dependencies
 
-RUN git clone https://github.com/aws-samples/aws-iot-securetunneling-localproxy && \
-	cd aws-iot-securetunneling-localproxy && \
-	mkdir build && \
-	cd build && \
-	cmake3 ../ && \
-	make
+# RUN git clone https://github.com/aws-samples/aws-iot-securetunneling-localproxy && \
+# 	cd aws-iot-securetunneling-localproxy && \
+# 	mkdir build && \
+# 	cd build && \
+# 	cmake3 ../ && \
+# 	make
 
 # If you'd like to use this Dockerfile to build your LOCAL revisions to the
 # local proxy source code, uncomment the following three commands and comment
 # out the command above. Otherwise, we'll build the local proxy container
 # with fresh source from the GitHub repo.
 
-#RUN mkdir /home/dependencies/aws-iot-securetunneling-localproxy
-#
-#COPY ./ /home/dependencies/aws-iot-securetunneling-localproxy/
-#
-#RUN cd /home/dependencies/aws-iot-securetunneling-localproxy && \
-#    rm -rf build/ && \
-#    mkdir build && \
-#    cd build && \
-#    cmake ../ && \
-#    make
+RUN mkdir /home/dependencies/aws-iot-securetunneling-localproxy
+
+COPY ./ /home/dependencies/aws-iot-securetunneling-localproxy/
+
+RUN cd /home/dependencies/aws-iot-securetunneling-localproxy && \
+   rm -rf build/ && \
+   mkdir build && \
+   cd build && \
+   cmake3 ../ && \
+   make
 
 RUN mkdir -p /home/aws-iot-securetunneling-localproxy && \
 	cd /home/aws-iot-securetunneling-localproxy && \
